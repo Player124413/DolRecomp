@@ -1,14 +1,14 @@
-name: Ultimate GameCube Decompiler
+name: Ultimate GameCube Decompiler (Full ISO)
 
 on:
-  workflow_dispatch: # Включает меню ручного запуска с телефона
+  workflow_dispatch:
     inputs:
       game_name:
-        description: 'Название игры (латиницей, например: sonic_heroes)'
+        description: 'Название игры (латиницей, например: shrek_superslam)'
         required: true
         default: 'my_game'
-      dol_url:
-        description: 'Прямая ссылка на скачивание вашего main.dol'
+      iso_url:
+        description: 'Пнямая ссылка на скачивание полного ISO-образа игры'
         required: true
 
 jobs:
@@ -29,18 +29,24 @@ jobs:
         cmake -S . -B build -DDOLRECOMP_ENABLE_LLVM=OFF
         cmake --build build --config Release
 
-    - name: Download main.dol from Cloud
+    - name: Download Game ISO from Cloud
       run: |
-        curl -L -o target_game.dol "${{ github.event.inputs.dol_url }}"
+        # Скачиваем тяжелый ISO-образ прямо на сервера GitHub
+        curl -L -o game.iso "${{ github.event.inputs.iso_url }}"
 
-    - name: Run Static Recompiler
+    - name: Extract ISO via DolRecomp
+      run: |
+        # Встроенная подкоманда DolRecomp сама распакует диск
+        ./build/dolrecomp extract game.iso ./extracted_game
+
+    - name: Run Static Recompiler on extracted main.dol
       run: |
         mkdir decompiled_output
-        ./build/dolrecomp --gamecube target_game.dol decompiled_output
+        # Запускаем декомпиляцию извлеченного файла main.dol
+        ./build/dolrecomp --gamecube ./extracted_game/sys/main.dol decompiled_output
 
     - name: Upload C-Code Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ github.event.inputs.game_name }}-c-code
         path: decompiled_output/
-
