@@ -1,0 +1,46 @@
+name: Ultimate GameCube Decompiler
+
+on:
+  workflow_dispatch: # Включает меню ручного запуска с телефона
+    inputs:
+      game_name:
+        description: 'Название игры (латиницей, например: sonic_heroes)'
+        required: true
+        default: 'my_game'
+      dol_url:
+        description: 'Прямая ссылка на скачивание вашего main.dol'
+        required: true
+
+jobs:
+  decompile:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Install Build Tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake clang git curl
+
+    - name: Build DolRecomp Tool
+      run: |
+        cmake -S . -B build -DDOLRECOMP_ENABLE_LLVM=OFF
+        cmake --build build --config Release
+
+    - name: Download main.dol from Cloud
+      run: |
+        curl -L -o target_game.dol "${{ github.event.inputs.dol_url }}"
+
+    - name: Run Static Recompiler
+      run: |
+        mkdir decompiled_output
+        ./build/dolrecomp --gamecube target_game.dol decompiled_output
+
+    - name: Upload C-Code Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ github.event.inputs.game_name }}-c-code
+        path: decompiled_output/
+
